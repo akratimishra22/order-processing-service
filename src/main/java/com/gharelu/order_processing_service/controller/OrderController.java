@@ -5,6 +5,7 @@ import com.gharelu.order_processing_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,10 +28,10 @@ public class OrderController {
 
     private final OrderService service;
     @Autowired
-    @Qualifier("authServiceWebClient")
-    private final WebClient webClient;
+    ApplicationContext ctx;
 
     private String isTokenValid(String authHeader) {
+        WebClient webClient = ctx.getBean("authServiceWebClientEurekaDiscovered", WebClient.class);
         String authResponse = webClient.get()
                 .header("Authorization", authHeader)
                 .retrieve()
