@@ -19,7 +19,6 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Orders placeOrder(Orders order) {
-        order.setCreatedAt(LocalDateTime.now());
         order.setStatus("PENDING");
         return repository.save(order);
     }
