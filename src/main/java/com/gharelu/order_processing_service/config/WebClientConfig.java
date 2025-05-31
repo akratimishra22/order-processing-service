@@ -33,4 +33,21 @@ public class WebClientConfig {
                 .baseUrl(String.format("http://%s:%s/api/v1/validate-token", hostname, port))
                 .build();
     }
+
+    @Bean
+    @Scope(value = "prototype")
+    public WebClient productCatalogServiceWebClientEurekaDiscovered(WebClient.Builder webClientBuilder) {
+        List<ServiceInstance> instances = discoveryClient.getInstances("product-catalog-service");
+
+        if(instances.isEmpty()){
+            throw new RuntimeException("No instances found for product-catalog-service");
+        }
+
+        String hostname = instances.get(0).getHost();
+        String port = String.valueOf(instances.get(0).getPort());
+
+        return webClientBuilder
+                .baseUrl(String.format("http://%s:%s/products", hostname, port))
+                .build();
+    }
 }

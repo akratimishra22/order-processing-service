@@ -1,10 +1,11 @@
 package com.gharelu.order_processing_service.controller;
 
+import com.gharelu.order_processing_service.model.OrderEvent;
 import com.gharelu.order_processing_service.model.Orders;
+import com.gharelu.order_processing_service.model.ProductResponse;
 import com.gharelu.order_processing_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,11 @@ public class OrderController {
     @Autowired
     ApplicationContext ctx;
 
+/*
+    @Autowired
+    private KafkaTemplate<String, OrderEvent> kafkaTemplate;
+*/
+
     private String isTokenValid(String authHeader) {
         WebClient webClient = ctx.getBean("authServiceWebClientEurekaDiscovered", WebClient.class);
         String authResponse = webClient.get()
@@ -40,12 +46,36 @@ public class OrderController {
         return authResponse;
     }
 
+    private Double getProductPrice(Long productId, String authHeader) {
+        WebClient webClient = ctx.getBean("productCatalogServiceWebClientEurekaDiscovered", WebClient.class);
+        ProductResponse productCatalogResponse = webClient.get()
+                .uri("/{id}", productId)
+                .header("Authorization", authHeader)
+                .retrieve()
+                .bodyToMono(ProductResponse.class)
+                .block();
+        return productCatalogResponse.getPrice();
+    }
+
     @PostMapping
     public ResponseEntity<Orders> placeOrder(@RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
                                              @RequestBody Orders order) {
         String authResponse = isTokenValid(authHeader);
-        if(authResponse.equals("Valid"))
+        if(authResponse.equals("Valid")) {
+            double amount = getProductPrice(order.getProductId(), authHeader) * order.getQuantity();
+            System.out.println("amount is"+amount);
+            order.setTotalAmount(amount);
+            service.placeOrder(order);
+            OrderEvent event = OrderEvent.builder()
+                    .orderId(order.getId())
+                    .productId(order.getProductId())
+                    .quantity(order.getQuantity())
+                    .amount(order.getTotalAmount())
+                    .status("CONFIRMED")
+                    .build();
+            /*kafkaTemplate.send("order-events", event);*/
             return ResponseEntity.ok(service.placeOrder(order));
+        }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
