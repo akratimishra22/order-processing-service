@@ -130,6 +130,61 @@ public class OrderController {
     }
 
     private void processOrderAsync(Orders order, String authHeader) {
+        Mono.zip(
+                        getInventory(order.getProductId(), order.getQuantity(), authHeader),
+                        makePayment(order.getId(), order.getTotalAmount(), authHeader),
+                        decrementInventory(order.getProductId(), order.getQuantity(), authHeader)
+                )
+                .flatMap(tuple -> {
+                    Boolean inStock = tuple.getT1();
+                    String paymentStatus = tuple.getT2();
+                    Boolean inventoryDecremented = tuple.getT3();
+
+                    if (!inStock) {
+                        order.setStatus("FAILED");
+                        emitEvent(order, "FAILED");
+                        service.updateStatus(order);
+                        return Mono.empty();
+                    }
+
+                    if (!"COMPLETED".equals(paymentStatus)) {
+                        if (Boolean.TRUE.equals(inventoryDecremented)) {
+                            return incrementInventory(order.getProductId(), order.getQuantity(), authHeader)
+                                    .doOnNext(reversed -> System.out.println("Inventory reversed: " + reversed))
+                                    .then(Mono.fromRunnable(() -> {
+                                        order.setStatus("FAILED");
+                                        emitEvent(order, "FAILED");
+                                        service.updateStatus(order);
+                                    }));
+                        } else {
+                            order.setStatus("FAILED");
+                            emitEvent(order, "FAILED");
+                            service.updateStatus(order);
+                            return Mono.empty();
+                        }
+                    }
+
+                    order.setStatus("COMPLETED");
+                    emitEvent(order, "COMPLETED");
+                    service.updateStatus(order);
+                    return Mono.empty();
+                })
+                .onErrorResume(ex -> {
+                    System.out.println("Error during async order processing: " + ex.getMessage());
+                    // Do best-effort rollback of inventory
+                    return incrementInventory(order.getProductId(), order.getQuantity(), authHeader)
+                            .doOnNext(reversed -> System.out.println("Rollback attempted: " + reversed))
+                            .then(Mono.fromRunnable(() -> {
+                                order.setStatus("FAILED");
+                                emitEvent(order, "FAILED");
+                                service.updateStatus(order);
+                            }));
+                })
+                .subscribe();
+    }
+/*
+
+    private void processOrderAsync(Orders order, String authHeader) {
         // Run async in new thread or scheduler (or use reactor if you want)
         Mono.zip(
                         getInventory(order.getProductId(), order.getQuantity(), authHeader),
@@ -160,7 +215,7 @@ public class OrderController {
                     return Mono.empty();
                 })
                 .subscribe();
-    }
+    }*/
 
 
     private Mono<String> makePayment(Long orderId, Double amount, String authHeader) {
