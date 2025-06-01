@@ -4,7 +4,6 @@ import com.gharelu.order_processing_service.model.Orders;
 import com.gharelu.order_processing_service.repository.OrderRepository;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +18,6 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Orders placeOrder(Orders order) {
-        order.setStatus("PENDING");
         return repository.save(order);
     }
 
@@ -44,6 +42,20 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus("CANCELLED");
             repository.save(order);
         });
+    }
+    
+    @Override
+    public Optional<Orders> updateStatus(Orders order) {
+        return repository.findById(order.getId())
+                .map(existingOrder -> {
+                    existingOrder.setStatus(order.getStatus());
+                    existingOrder.setTotalAmount(existingOrder.getTotalAmount());
+                    existingOrder.setCustomerId(existingOrder.getCustomerId());
+                    existingOrder.setId(existingOrder.getId());
+                    existingOrder.setQuantity(existingOrder.getQuantity());
+                    existingOrder.setProductId(existingOrder.getProductId());
+                    return repository.save(existingOrder);
+                });
     }
 }
 

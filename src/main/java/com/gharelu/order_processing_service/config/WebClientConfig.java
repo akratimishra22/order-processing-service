@@ -50,4 +50,38 @@ public class WebClientConfig {
                 .baseUrl(String.format("http://%s:%s/products", hostname, port))
                 .build();
     }
+
+    @Bean
+    @Scope(value = "prototype")
+    public WebClient inventoryServiceWebClientEurekaDiscovered(WebClient.Builder webClientBuilder) {
+        List<ServiceInstance> instances = discoveryClient.getInstances("inventory-service");
+
+        if(instances.isEmpty()){
+            throw new RuntimeException("No instances found for inventory-service");
+        }
+
+        String hostname = instances.get(0).getHost();
+        String port = String.valueOf(instances.get(0).getPort());
+
+        return webClientBuilder
+                .baseUrl(String.format("http://%s:%s/inventory", hostname, port))
+                .build();
+    }
+
+    @Bean
+    @Scope(value = "prototype")
+    public WebClient paymentServiceWebClientEurekaDiscovered(WebClient.Builder webClientBuilder) {
+        List<ServiceInstance> instances = discoveryClient.getInstances("payment-service");
+
+        if(instances.isEmpty()){
+            throw new RuntimeException("No instances found for payment-service");
+        }
+
+        String hostname = instances.get(0).getHost();
+        String port = String.valueOf(instances.get(0).getPort());
+
+        return webClientBuilder
+                .baseUrl(String.format("http://%s:%s/payment", hostname, port))
+                .build();
+    }
 }
