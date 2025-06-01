@@ -182,40 +182,6 @@ public class OrderController {
                 })
                 .subscribe();
     }
-/*
-
-    private void processOrderAsync(Orders order, String authHeader) {
-        // Run async in new thread or scheduler (or use reactor if you want)
-        Mono.zip(
-                        getInventory(order.getProductId(), order.getQuantity(), authHeader),
-                        makePayment(order.getId(), order.getTotalAmount(), authHeader),
-                        decrementInventory(order.getProductId(), order.getQuantity(), authHeader)
-                )
-                .flatMap(tuple -> {
-                    Boolean inStock = tuple.getT1();
-                    String paymentStatus = tuple.getT2();
-                    Boolean inventoryDecremented = tuple.getT3();
-
-                    if (!inStock) {
-                        order.setStatus("FAILED");
-                    } else if (!"COMPLETED".equals(paymentStatus)) {
-                        // revert inventory if decremented
-                        if (Boolean.TRUE.equals(inventoryDecremented)) {
-                            return incrementInventory(order.getProductId(), order.getQuantity(), authHeader)
-                                    .then(Mono.fromRunnable(() -> order.setStatus("FAILED")));
-                        } else {
-                            order.setStatus("FAILED");
-                        }
-                    } else {
-                        order.setStatus("COMPLETED");
-                    }
-
-                    emitEvent(order, order.getStatus());
-                    service.updateStatus(order); // update DB with final status
-                    return Mono.empty();
-                })
-                .subscribe();
-    }*/
 
 
     private Mono<String> makePayment(Long orderId, Double amount, String authHeader) {
