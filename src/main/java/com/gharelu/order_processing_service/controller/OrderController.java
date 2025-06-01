@@ -1,15 +1,18 @@
 package com.gharelu.order_processing_service.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gharelu.order_processing_service.model.OrderEvent;
 import com.gharelu.order_processing_service.model.Orders;
 import com.gharelu.order_processing_service.model.ProductResponse;
 import com.gharelu.order_processing_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,10 +34,11 @@ public class OrderController {
     @Autowired
     ApplicationContext ctx;
 
-/*
     @Autowired
     private KafkaTemplate<String, OrderEvent> kafkaTemplate;
-*/
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private String isTokenValid(String authHeader) {
         WebClient webClient = ctx.getBean("authServiceWebClientEurekaDiscovered", WebClient.class);
@@ -57,6 +61,7 @@ public class OrderController {
         return productCatalogResponse.getPrice();
     }
 
+    @SneakyThrows
     @PostMapping
     public ResponseEntity<Orders> placeOrder(@RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
                                              @RequestBody Orders order) {
@@ -73,8 +78,9 @@ public class OrderController {
                     .amount(order.getTotalAmount())
                     .status("CONFIRMED")
                     .build();
-            /*kafkaTemplate.send("order-events", event);*/
-            return ResponseEntity.ok(service.placeOrder(order));
+            //String eventJson = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("order-created-topic", event);
+            return ResponseEntity.ok(order);
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
